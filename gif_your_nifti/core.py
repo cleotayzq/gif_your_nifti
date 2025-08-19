@@ -11,7 +11,7 @@ except ImportError:
     get_cmap = plt.get_cmap
 from imageio import mimwrite
 from skimage.transform import resize
-
+from scipy.ndimage import zoom
 
 def parse_filename(filepath):
     """Parse input file path into directory, basename and extension.
@@ -79,6 +79,39 @@ def load_and_prepare_image(filename, size=1):
 
     return out_img, maximum
 
+def load_and_prepare_image_isotropic(filename, size=1.0, target_spacing=None):
+    img = nb.load(filename)
+    img = nb.as_closest_canonical(img)  # consistent RAS orientation
+    data = img.get_fdata()
+    zooms = np.array(img.header.get_zooms()[:3], dtype=float)
+
+    # choose an isotropic spacing to resample to
+    if target_spacing is None:
+        target_spacing = zooms.min()  # keep highest native resolution
+    factors = zooms / float(target_spacing)
+
+    # resample to isotropic voxels
+    data_iso = zoom(data, factors, order=1)  # linear is fine for visualization
+
+    # pad to cube then optional global resize
+    maximum = int(max(data_iso.shape))
+    out_img = np.zeros((maximum, maximum, maximum), dtype=np.float32)
+    shape = np.array(data_iso.shape)
+    start = ((maximum - shape) // 2).astype(int)
+    sx, sy, sz = start
+    ex, ey, ez = (start + shape).astype(int)
+    out_img[sx:ex, sy:ey, sz:ez] = data_iso
+
+    # scale to 0..255 uint8
+    out_img *= 255.0 / out_img.max()
+    out_img = out_img.astype(np.uint8)
+
+    if size != 1.0:
+        from skimage.transform import resize
+        out_img = resize(out_img, [int(size * maximum)] * 3, order=1, preserve_range=True).astype(np.uint8)
+        maximum = out_img.shape[0]
+
+    return out_img, maximum
 
 def create_mosaic_normal(out_img, maximum, frameskip):
     """Create grayscale image.
@@ -191,7 +224,7 @@ def write_gif_normal(filename, size=1, fps=18, frameskip=1):
 
     """
     # Load NIfTI and put it in right shape
-    out_img, maximum = load_and_prepare_image(filename, size)
+    out_img, maximum = load_and_prepare_image_isotropic(filename, size)
 
     # Create output mosaic
     new_img = create_mosaic_normal(out_img, maximum, frameskip)
