@@ -82,6 +82,7 @@ def load_and_prepare_image(filename, size=1):
 def load_and_prepare_image_isotropic(filename, size=1.0, target_spacing=None):
     img = nb.load(filename)
     img = nb.as_closest_canonical(img)  # consistent RAS orientation
+
     data = img.get_fdata()
     zooms = np.array(img.header.get_zooms()[:3], dtype=float)
 
@@ -258,7 +259,7 @@ def write_gif_depth(filename, size=1, fps=18, frameskip=1):
 
     """
     # Load NIfTI and put it in right shape
-    out_img, maximum = load_and_prepare_image(filename, size)
+    out_img, maximum = load_and_prepare_image_isotropic(filename, size)
 
     # Create output mosaic
     new_img = create_mosaic_depth(out_img, maximum, frameskip)
@@ -291,9 +292,9 @@ def write_gif_rgb(filename1, filename2, filename3, size=1, fps=18, frameskip=1):
 
     """
     # Load NIfTI and put it in right shape
-    out_img1, maximum1 = load_and_prepare_image(filename1, size)
-    out_img2, maximum2 = load_and_prepare_image(filename2, size)
-    out_img3, maximum3 = load_and_prepare_image(filename3, size)
+    out_img1, maximum1 = load_and_prepare_image_isotropic(filename1, size)
+    out_img2, maximum2 = load_and_prepare_image_isotropic(filename2, size)
+    out_img3, maximum3 = load_and_prepare_image_isotropic(filename3, size)
 
     if maximum1 == maximum2 and maximum1 == maximum3:
         maximum = maximum1
@@ -331,7 +332,7 @@ def write_gif_pseudocolor(filename, size=1, fps=18, colormap='hot', frameskip=1)
 
     """
     # Load NIfTI and put it in right shape
-    out_img, maximum = load_and_prepare_image(filename, size)
+    out_img, maximum = load_and_prepare_image_isotropic(filename, size)
 
     # Create output mosaic
     new_img = create_mosaic_normal(out_img, maximum, frameskip)
